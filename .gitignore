@@ -1,0 +1,6 @@
+/project/
+/.bsp/
+/.idea/
+/radstat.csv/
+/radstat.parquet/
+/target/
