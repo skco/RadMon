@@ -1,15 +1,10 @@
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Column, DataFrame, Dataset, Row, SparkSession}
+import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
-import org.apache.spark.sql.functions.countDistinct
 
-object RadStat {
-
-
+object RadMon {
   def main(args: Array[String]): Unit = {
     val spark: SparkSession = SparkSession.builder()
-      .appName("RadStat")
+      .appName("RadMon")
       .master("local[*]")
       .getOrCreate()
 
@@ -20,17 +15,17 @@ object RadStat {
    // val radiationDF: Dataset[Row] = spark.read.parquet("E://radstat/*")
     radiationDF.show(false)
 
-    val filtered:Dataset[Row] =  radiationDF.filter("length(value) != 0")
-                                            .filter(!col("value").contains( "1 year radiation"))
-                                            .filter(!col("value").contains( "Datetime"))
+    val filtered:Dataset[Row] =  radiationDF.filter("length(value) != 0") // delete empty columns
+                                            .filter(!col("value").contains( "1 year radiation")) // delete comment column
+                                            .filter(!col("value").contains( "Datetime"))         // delete header column
                                             .withColumn("datetime",split(col("value"),",").getItem(0))
                                             .withColumn("cpm",split(col("value"),",").getItem(1))
-                                            .withColumn("filename",reverse(split(col("filename"),"[\\/.]")).getItem(1))
+                                            .withColumn("filename",reverse(split(col("filename"),"[\\/.]")).getItem(1)) // get filename one before last item in path string
                                             .drop("value")
 
+    filtered.show(100,truncate = false)
+    filtered.printSchema()
 
-
-    filtered.show(10000,truncate = false)
 
     //filtered.write.mode("overwrite").parquet("radstat.parquet")
     //filtered.write.mode("overwrite").csv("radstat.csv")
