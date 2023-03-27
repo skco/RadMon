@@ -4,9 +4,9 @@ import org.apache.spark.sql.functions._
 object RadMon {
   def main(args: Array[String]): Unit = {
     val spark: SparkSession = SparkSession.builder()
-      .appName("RadMon")
-      .master("local[*]")
-      .getOrCreate()
+                                          .appName("RadMon")
+                                          .master("local[*]")
+                                          .getOrCreate()
 
     import spark.implicits._
 
@@ -25,7 +25,6 @@ object RadMon {
 
     filtered.show(100,truncate = false)
     filtered.printSchema()
-
 
     //filtered.write.mode("overwrite").parquet("radstat.parquet")
     //filtered.write.mode("overwrite").csv("radstat.csv")
