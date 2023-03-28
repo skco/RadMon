@@ -4,3 +4,5 @@
 /radstat.csv/
 /radstat.parquet/
 /target/
+/metadata.csv/
+/radmon_orginal.json
