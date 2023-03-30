@@ -1,5 +1,6 @@
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
 
 object RadMon {
 
@@ -21,15 +22,20 @@ object RadMon {
 
     val joined:Dataset[Row] = cleanedData.join(cleanedMetaData,"StationName")
 
-    val colName:String = "lastValue"
-    val colType:String = "int"
+    val dropColumnList:Seq[String] = Seq("unknow1","unknow2","unknow3","unknow4","recordnumber","lastValue")
 
-    val result:Dataset[Row] = joined.select(colName).withColumn(colName,col(colName).cast(colType)).distinct().sort(colName)
+    val result:Dataset[Row] = joined.withColumn("conversionFactor",col("conversionFactor").cast(DoubleType))
+                                    .withColumn("cpm",             col("cpm").cast(IntegerType))
+                                    .withColumn("index",           col("index")           .cast(IntegerType))
+                                    .withColumn("datetime",        to_timestamp(col("datetime")))
+                                    .withColumn("lat",             col("lat").cast(DoubleType))
+                                    .withColumn("lon",             col("lon").cast(DoubleType))
+                                    .withColumn("uSv_hr",          col("cpm") * col("conversionFactor"))
+                                    .drop(dropColumnList:_*)
 
-    result.show(false)
+    result.show(truncate = false)
+    result.printSchema()
 
-    println(result.count())
-    //cleanedMetaData.show()
   }
 
 }

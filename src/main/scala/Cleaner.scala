@@ -2,6 +2,7 @@ import org.apache.spark.sql.functions.{col, reverse, split}
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions._
 
+import scala.annotation.tailrec
 import scala.io.{BufferedSource, Source}
 
 class Cleaner(spark:SparkSession) {
@@ -27,7 +28,7 @@ class Cleaner(spark:SparkSession) {
 
   /**
    *
-   * @param filename = "broken" JSON filename
+   * @param fileName = "broken" JSON filename
    * @return dataframe with metadata as rows
    */
   private def lengthMetaData(fileName:String):Int=  {
@@ -49,6 +50,7 @@ class Cleaner(spark:SparkSession) {
     val columnsList: Seq[String] = Seq("index", "Location", "DeviceType", "unknow1", "unknow2", "unknow3", "URL", "lastValue",
                                        "unknow4", "recordNumber", "lat", "lon", "StationName", "conversionFactor")
 
+        @tailrec
         def addRow(buf: Iterator[String], DF: Dataset[Row]): Dataset[Row] = {
               val line: String = buf.next() // get next line from itterator
               val acc: Dataset[Row] = DF.join(line.replace("[", "") // parse line
@@ -58,14 +60,14 @@ class Cleaner(spark:SparkSession) {
                 .toSeq.toDF()
                 .withColumn("index", monotonically_increasing_id()), "index") // add index
 
-              if (buf.hasNext) addRow(buf, acc) else acc // recursive read next row or return final DF
+              if (buf.hasNext) addRow(buf, acc) else acc            // recursive read next row or return final DF
             }
 
-            val recordsCount:Int = lengthMetaData(fileName) // get metatsada records
+            val recordsCount:Int = lengthMetaData(fileName)         // get metatsada records
             val file: BufferedSource = Source.fromFile(fileName)
             val fileLines = file.getLines()
 
-            val indexDF: Dataset[Row] = (0 until recordsCount).toSeq.toDF().withColumnRenamed("value", "index")
+            val indexDF: Dataset[Row] = (0 until recordsCount).toDF().withColumnRenamed("value", "index")
             val result : Dataset[Row] = addRow(fileLines, indexDF).toDF(columnsList:_*)
             file.close()
             result
