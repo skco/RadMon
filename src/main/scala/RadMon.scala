@@ -1,33 +1,40 @@
-import org.apache.spark.sql.{Dataset, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
 
 object RadMon {
+
+
+
   def main(args: Array[String]): Unit = {
     val spark: SparkSession = SparkSession.builder()
                                           .appName("RadMon")
                                           .master("local[*]")
                                           .getOrCreate()
 
-    import spark.implicits._
+    val loader  = new Loader(spark)
+    val cleaner = new Cleaner(spark)
 
-    val radiationDF:Dataset[Row] = spark.read.text("E://radstat/*").withColumn("filename", input_file_name())
+    val rawData     : Dataset[Row] =  loader.LoadRadMonData("E:/radstat/*")
+    val cleanedData : Dataset[Row] =  cleaner.cleanRadMonData(rawData)
 
-   // val radiationDF: Dataset[Row] = spark.read.parquet("E://radstat/*")
-    radiationDF.show(false)
+    val cleanedMetaData : Dataset[Row]  = cleaner.cleanMetaData("radmon.json")
 
-    val filtered:Dataset[Row] =  radiationDF.filter("length(value) != 0") // delete empty columns
-                                            .filter(!col("value").contains( "1 year radiation")) // delete comment column
-                                            .filter(!col("value").contains( "Datetime"))         // delete header column
-                                            .withColumn("datetime",split(col("value"),",").getItem(0))
-                                            .withColumn("cpm",split(col("value"),",").getItem(1))
-                                            .withColumn("filename",reverse(split(col("filename"),"[\\/.]")).getItem(1)) // get filename one before last item in path string
-                                            .drop("value")
+    val joined:Dataset[Row] = cleanedData.join(cleanedMetaData,"StationName")
 
-    filtered.show(100,truncate = false)
-    filtered.printSchema()
+    val dropColumnList:Seq[String] = Seq("unknow1","unknow2","unknow3","unknow4","recordnumber","lastValue")
 
-    //filtered.write.mode("overwrite").parquet("radstat.parquet")
-    //filtered.write.mode("overwrite").csv("radstat.csv")
+    val result:Dataset[Row] = joined.withColumn("conversionFactor",col("conversionFactor").cast(DoubleType))
+                                    .withColumn("cpm",             col("cpm").cast(IntegerType))
+                                    .withColumn("index",           col("index")           .cast(IntegerType))
+                                    .withColumn("datetime",        to_timestamp(col("datetime")))
+                                    .withColumn("lat",             col("lat").cast(DoubleType))
+                                    .withColumn("lon",             col("lon").cast(DoubleType))
+                                    .withColumn("uSv_hr",          col("cpm") * col("conversionFactor"))
+                                    .drop(dropColumnList:_*)
+
+    result.show(truncate = false)
+    result.printSchema()
 
   }
 
